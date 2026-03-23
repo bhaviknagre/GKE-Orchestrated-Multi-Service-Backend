@@ -1,6 +1,6 @@
 # Networking
 
-project_id    = "bhavik-nagre-1773724371"
+project_id    = "your project id"
 vpc_name      = "microservice-vpc"
 subnet_name   = "gke-subnet"
 region        = "asia-southeast1"
