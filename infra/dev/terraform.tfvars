@@ -36,7 +36,7 @@ db_user           = "appuser"
 
 # Observability
 
-#WEBHOOK URL 
+#WEBHOOK URL =
 alert_email              = "bhaviknagre1432@gmail.com"
 slack_webhook_url        = "CHANGE_ME" # export TF_VAR_slack_webhook_url=
 obs_service_name         = "order-service"
