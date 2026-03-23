@@ -1,0 +1,41 @@
+replicaCount: 2
+
+image:
+  repository: asia-southeast1-docker.pkg.dev/bhavik-nagre-1773724371/ollion-practise-project-repo/inventory-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+projectId: bhavik-nagre-1773724371
+namespace: services
+
+service:
+  type: ClusterIP
+  port: 8000
+
+environment: dev
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+env:
+  DB_HOST: "10.187.0.3"
+  DB_PORT: "5432"
+  DB_NAME: "inventorydb"
+  DB_USER: "appuser"
+
+serviceAccount:
+  create: true
+  name: inventory-service-sa
+  annotations:
+    iam.gke.io/gcp-service-account: capstone-project-sa@bhavik-nagre-1773724371.iam.gserviceaccount.com

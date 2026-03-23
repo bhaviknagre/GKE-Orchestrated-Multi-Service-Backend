@@ -1,0 +1,29 @@
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+
+canary:
+  enabled: false    
+  weight: 10
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+env:
+  DB_HOST: "10.187.0.3"
+  DB_PORT: "5432"
+  DB_NAME: "orderdb"
+  DB_USER: "appuser"
+
+serviceAccount:
+  name: order-service-sa
+  gcpServiceAccount: capstone-project-sa@bhavik-nagre-1773724371.iam.gserviceaccount.com
+
+projectId: bhavik-nagre-1773724371

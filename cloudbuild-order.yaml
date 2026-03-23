@@ -1,0 +1,118 @@
+substitutions:
+  _REGION: asia-southeast1
+  _PROJECT_ID: bhavik-nagre-1773724371
+  _REPO: ollion-practise-project-repo
+  _SERVICE: order-service
+  _CLUSTER: capstone-cluster
+  _NAMESPACE: services
+  _ENVIRONMENT: dev
+  _CHART_VERSION: "1.0.0"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+
+#Install dependencies
+  - name: node:18-slim
+    id: install
+    entrypoint: npm
+    args: ["install", "--omit=dev"]
+    dir: app/Order-Service
+
+# Docker Build
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_SERVICE}:$SHORT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_SERVICE}:latest
+      - -f
+      - app/Order-Service/Dockerfile
+      - app/Order-Service
+    waitFor: [install]
+
+#Push to artifact
+  - name: gcr.io/cloud-builders/docker
+    id: push-sha
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_SERVICE}:$SHORT_SHA
+    waitFor: [build]
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-latest
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_SERVICE}:latest
+    waitFor: [build]
+
+#GET GKE credentials
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: get-credentials
+    entrypoint: gcloud
+    args:
+      - container
+      - clusters
+      - get-credentials
+      - ${_CLUSTER}
+      - --region
+      - ${_REGION}
+      - --project
+      - ${_PROJECT_ID}
+    waitFor: [push-sha]
+
+#Helm Deploy stable-90
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: helm-deploy-stable
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        helm upgrade --install ${_SERVICE} ./charts/order-service \
+          --namespace ${_NAMESPACE} \
+          --create-namespace \
+          --atomic \
+          --cleanup-on-fail \
+          --timeout 10m \
+          --set image.repository=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_SERVICE} \
+          --set image.tag=$SHORT_SHA \
+          --set environment=${_ENVIRONMENT} \
+          --values ./charts/order-service/values-${_ENVIRONMENT}.yaml
+    waitFor: [get-credentials]
+
+#Helm Deploy canary-10
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: helm-deploy-canary
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        helm upgrade --install ${_SERVICE}-canary ./charts/order-service \
+          --namespace ${_NAMESPACE} \
+          --atomic \
+          --cleanup-on-fail \
+          --timeout 10m \
+          --values ./charts/order-service/values-${_ENVIRONMENT}.yaml \
+          --values ./charts/order-service/values-canary.yaml \
+          --set image.repository=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_SERVICE} \
+          --set image.tag=$SHORT_SHA
+    waitFor: [helm-deploy-stable]
+
+#Canary promotion
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: canary-promote
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        chmod +x ./scripts/canary_promote.sh
+        PROJECT_ID=${_PROJECT_ID} NAMESPACE=${_NAMESPACE} SERVICE=${_SERVICE} \
+        REGION=${_REGION} CLUSTER=${_CLUSTER} IMAGE_TAG=$SHORT_SHA \
+        REPO=${_REPO} ENVIRONMENT=${_ENVIRONMENT} ./scripts/canary_promote.sh
+    waitFor: [helm-deploy-canary]

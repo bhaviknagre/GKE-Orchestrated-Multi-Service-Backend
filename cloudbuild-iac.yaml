@@ -1,0 +1,107 @@
+substitutions:
+  _REGION: asia-southeast1
+  _PROJECT_ID: bhavik-nagre-1773724371
+  _CLUSTER: capstone-cluster
+  _NAMESPACE: services
+  _TF_DIR: infra/dev
+  _STATE_BUCKET: capstone-terraform-state-buckets
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/${_PROJECT_ID}/secrets/db-password/versions/latest
+      env: TF_VAR_db_password
+    - versionName: projects/${_PROJECT_ID}/secrets/slack-webhook-url/versions/latest
+      env: TF_VAR_slack_webhook_url
+
+#Terraform Steps
+
+steps:
+
+  # Step 1 — Terraform Init
+  - name: hashicorp/terraform:1.6
+    id: tf-init
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        terraform -chdir=${_TF_DIR} init \
+          -backend-config="bucket=${_STATE_BUCKET}" \
+          -backend-config="prefix=terraform/state/dev"
+    secretEnv: ['TF_VAR_db_password', 'TF_VAR_slack_webhook_url']
+
+  # Step 2 — Terraform Validate
+  - name: hashicorp/terraform:1.6
+    id: tf-validate
+    entrypoint: sh
+    args:
+      - -c
+      - terraform -chdir=${_TF_DIR} validate
+    waitFor: [tf-init]
+
+  # Step 3 — Terraform Plan
+  - name: hashicorp/terraform:1.6
+    id: tf-plan
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        terraform -chdir=${_TF_DIR} plan \
+          -var="project_id=${_PROJECT_ID}" \
+          -var="region=${_REGION}" \
+          -out=tfplan
+    secretEnv: ['TF_VAR_db_password', 'TF_VAR_slack_webhook_url']
+    waitFor: [tf-validate]
+
+  # Step 4 — Terraform Apply 
+  - name: hashicorp/terraform:1.6
+    id: tf-apply
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        if [ "$BRANCH_NAME" = "main" ]; then
+          echo "Applying Terraform on main branch..."
+          terraform -chdir=${_TF_DIR} apply -auto-approve tfplan
+        else
+          echo "Branch is ${BRANCH_NAME} — skipping apply, plan only."
+        fi
+    secretEnv: ['TF_VAR_db_password', 'TF_VAR_slack_webhook_url']
+    waitFor: [tf-plan]
+
+#K8s Deployment Steps  
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: get-credentials
+    entrypoint: gcloud
+    args:
+      - container
+      - clusters
+      - get-credentials
+      - ${_CLUSTER}
+      - --region
+      - ${_REGION}
+      - --project
+      - ${_PROJECT_ID}
+
+  - name: gcr.io/cloud-builders/kubectl
+    id: apply-k8s
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        echo "Applying k8s base manifests..."
+        kubectl apply -f k8s/namespace.yaml
+        kubectl apply -f k8s/gateway.yaml
+        kubectl apply -f k8s/httproute.yaml
+        kubectl apply -f k8s/canary-service.yaml
+        kubectl apply -f k8s/networkpolicy.yaml
+        kubectl apply -f k8s/podmonitoring.yaml
+        kubectl apply -f k8s/pdb.yaml
+
+        echo "Verifying..."
+        kubectl get gateway,httproute,networkpolicy -n ${_NAMESPACE}
+        echo "K8s manifests applied successfully!"
+    waitFor: [get-credentials]

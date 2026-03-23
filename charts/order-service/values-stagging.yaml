@@ -1,0 +1,15 @@
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  DB_HOST: "10.187.0.3"
+  DB_PORT: "5432"
+  DB_NAME: "orderdb"
+  DB_USER: "appuser"

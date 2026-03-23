@@ -1,0 +1,22 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: order-service-managed-cert
+  namespace: services
+spec:
+  domains:
+    - order-service.ollion.com
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: order-gateway
+  namespace: services
+  annotations:
+    networking.gke.io/managed-certificates: order-service-managed-cert
+spec:
+  gatewayClassName: gke-l7-global-external-managed
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80

@@ -1,0 +1,50 @@
+replicaCount: 2
+
+image:
+  repository: asia-southeast1-docker.pkg.dev/bhavik-nagre-1773724371/ollion-practise-project-repo/order-service
+  tag: latest
+  pullPolicy: Always
+
+namespace: services
+projectId: bhavik-nagre-1773724371
+environment: dev
+
+canary:
+  enabled: false
+  weight: 10
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+env:
+  DB_HOST: "10.187.0.3"
+  DB_PORT: "5432"
+  DB_NAME: "orderdb"
+  DB_USER: "appuser"
+  INVENTORY_SERVICE_URL: "http://inventory-service.services.svc.cluster.local:8080"
+
+serviceAccount:
+  create: true
+  name: order-service-sa
+  gcpServiceAccount:  capstone-project-sa@bhavik-nagre-1773724371.iam.gserviceaccount.com
+
+service:
+  create: true
+
+secretProvider:
+  create: true
+
+configmap:
+  create: true 
+

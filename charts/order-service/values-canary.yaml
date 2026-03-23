@@ -1,0 +1,18 @@
+serviceAccount:
+  create: false
+  name: order-service-sa
+
+configmap:
+  create: false
+
+service:
+  create: false
+
+autoscaling:
+  enabled: false
+
+secretProvider:
+  create: false
+
+canary:
+  enabled: true

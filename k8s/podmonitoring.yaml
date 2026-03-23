@@ -1,0 +1,29 @@
+# Order Service
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: order-service-monitoring
+  namespace: services
+spec:
+  selector:
+    matchLabels:
+      app: order-service
+  endpoints:
+    - port: 8080
+      path: /metrics
+      interval: 30s
+---
+# Inventory Service
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: inventory-service-monitoring
+  namespace: services
+spec:
+  selector:
+    matchLabels:
+      app: inventory-service
+  endpoints:
+    - port: 8000
+      path: /metrics
+      interval: 30s

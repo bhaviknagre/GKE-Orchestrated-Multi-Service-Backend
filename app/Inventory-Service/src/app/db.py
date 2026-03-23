@@ -1,0 +1,40 @@
+import os
+
+from sqlalchemy import (
+    Column, Integer, String, Table, create_engine, MetaData, Boolean, DateTime
+)
+from sqlalchemy.sql import func
+from dotenv import load_dotenv
+from databases import Database
+
+load_dotenv()
+
+# Database URL - use environment variable or default
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME", "inventorydb")
+DB_USER = os.getenv("DB_USER", "appuser")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+)
+
+# SQLAlchemy engine and metadata
+engine = create_engine(DATABASE_URL)
+metadata = MetaData()
+
+# Notes table with proper constraints
+notes = Table(
+    "notes",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("title", String(255), nullable=False),
+    Column("description", String(1000), nullable=False),
+    Column("completed", Boolean, default=False, nullable=False),
+    Column("created_date", DateTime, default=func.now(), nullable=False)
+)
+
+# Async database connection
+database = Database(DATABASE_URL)

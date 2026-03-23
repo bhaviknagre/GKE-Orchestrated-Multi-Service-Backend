@@ -1,0 +1,90 @@
+# NetworkPolicy for Order Service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: order-service-netpol
+  namespace: services
+spec:
+  podSelector:
+    matchLabels:
+      app: order-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from anywhere (Gateway / external LB)
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow calls to Inventory Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: inventory-service
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow Cloud SQL private IP
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+      ports:
+        - protocol: TCP
+          port: 5432
+    # DNS
+    - ports:
+        - protocol: UDP
+          port: 53
+    # Secret Manager / external HTTPS
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# NetworkPolicy for Inventory Service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: inventory-service-netpol
+  namespace: services
+spec:
+  podSelector:
+    matchLabels:
+      app: inventory-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only allow traffic from Order Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: order-service
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow Cloud SQL private IP only
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+      ports:
+        - protocol: TCP
+          port: 5432
+    # DNS
+    - ports:
+        - protocol: UDP
+          port: 53
+    # Secret Manager / external HTTPS
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443

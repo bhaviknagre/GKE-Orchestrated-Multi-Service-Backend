@@ -1,0 +1,15 @@
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+env:
+  DB_HOST: "10.187.0.3"
+  DB_PORT: "5432"
+  DB_NAME: "inventorydb"
+  DB_USER: "appuser"
